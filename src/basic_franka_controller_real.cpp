@@ -150,6 +150,9 @@ void BasicFrankaController::update(const ros::Time& time, const ros::Duration& p
     }
   }
   
+  if (print_rate_trigger_()) {
+    ROS_INFO_STREAM("tau :" << franka_torque_.transpose());
+  }
    for (int i = 0; i < 7; i++)
       joint_handles_[i].setCommand(0.0);
   

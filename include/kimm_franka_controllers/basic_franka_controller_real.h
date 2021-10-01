@@ -130,6 +130,7 @@ class BasicFrankaController : public controller_interface::MultiInterfaceControl
   actionlib::SimpleActionClient<franka_gripper::MoveAction> gripper_ac_{"/franka_gripper/move", true};
 
   franka_gripper::GraspGoal goal;
+  franka_hw::TriggerRate print_rate_trigger_{10}; 
 
   // Variables
   const double kDeltaTauMax{1.0};

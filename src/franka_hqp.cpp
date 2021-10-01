@@ -48,12 +48,12 @@ namespace RobotController{
 
         // tasks
         postureTask_ = std::make_shared<TaskJointPosture>("task-posture", *robot_);
-        postureTask_->Kp(5000.0*Vector::Ones(na_));
+        postureTask_->Kp(500.0*Vector::Ones(na_));
         postureTask_->Kd(2.0*postureTask_->Kp().cwiseSqrt());
 
         Vector3d ee_offset(0.0, 0, 0.0);
         eeTask_ = std::make_shared<TaskSE3Equality>("task-se3", *robot_, "panda_joint7", ee_offset);
-        eeTask_->Kp(5000.0*Vector::Ones(6));
+        eeTask_->Kp(500.0*Vector::Ones(6));
         eeTask_->Kd(2.0*eeTask_->Kp().cwiseSqrt());
         
         torqueBoundsTask_ = std::make_shared<TaskJointBounds>("task-torque-bounds", *robot_);
