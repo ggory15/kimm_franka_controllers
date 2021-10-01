@@ -84,7 +84,7 @@ bool BasicFrankaController::init(hardware_interface::RobotHW* robot_hw, ros::Nod
   //keyboard event
   mode_change_thread_ = std::thread(&BasicFrankaController::modeChangeReaderProc, this);
 
-  ctrl_ = new RobotController::FrankaWrapper("ns0", true, node_handle);
+  ctrl_ = new RobotController::FrankaWrapper("ns0", false, node_handle);
   ctrl_->initialize();
 
   
@@ -150,9 +150,11 @@ void BasicFrankaController::update(const ros::Time& time, const ros::Duration& p
     }
   }
   
-  if (print_rate_trigger_()) {
-    ROS_INFO_STREAM("tau :" << franka_torque_.transpose());
-  }
+  // if (print_rate_trigger_()) {
+  //   ROS_INFO_STREAM("tau :" << franka_torque_.transpose());
+  // }
+
+  
    for (int i = 0; i < 7; i++)
       joint_handles_[i].setCommand(0.0);
   

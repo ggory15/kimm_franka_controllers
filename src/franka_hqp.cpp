@@ -143,11 +143,11 @@ namespace RobotController{
         }
         if (ctrl_mode_ == 2){
             if (mode_change_){
-                // tsid_->removeTask("task-se3");
-                // tsid_->removeTask("task-posture");
+                tsid_->removeTask("task-se3");
+                tsid_->removeTask("task-posture");
                 tsid_->removeTask("task-torque-bounds");
 
-                // tsid_->addMotionTask(*postureTask_, 1e-2, 1);
+                tsid_->addMotionTask(*postureTask_, 1e-2, 1);
                 // tsid_->addMotionTask(*torqueBoundsTask_, 1.0, 0);
                 tsid_->addMotionTask(*eeTask_, 1, 0);
 
@@ -166,8 +166,8 @@ namespace RobotController{
             sampleEE_ = trajEE_Timeopt_->computeNext();
             eeTask_->setReference(sampleEE_);
 
-            // samplePosture_.pos = q_ref_;
-            // postureTask_->setReference(samplePosture_);
+            samplePosture_.pos = q_ref_;
+            postureTask_->setReference(samplePosture_);
 
             // Momentum-based Observer
 
