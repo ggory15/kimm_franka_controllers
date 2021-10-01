@@ -47,6 +47,12 @@ class BasicFrankaController : public controller_interface::MultiInterfaceControl
   {"/franka_gripper/move", true};
 
   franka_gripper::GraspGoal goal;
+
+  Eigen::Matrix<double, 7, 1> q_init_;
+  Eigen::Affine3d transform_init_;
+  Eigen::Vector3d pos_init_;
+  Eigen::Matrix<double, 3, 3> ori_init_;
+  Eigen::Matrix<double , 12, 1> x_temp_;
   
 };
 

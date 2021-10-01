@@ -78,14 +78,51 @@ bool BasicFrankaController::init(hardware_interface::RobotHW* robot_hw, ros::Nod
 }
 
 void BasicFrankaController::starting(const ros::Time& time) {
-  
+  const franka::RobotState &robot_state = state_handle_->getRobotState();
+  transform_init_ = Eigen::Matrix4d::Map(robot_state.O_T_EE.data());
+  pos_init_ = transform_init_.translation();	
+  ori_init_ = transform_init_.rotation();
 
 }
 
 
 void BasicFrankaController::update(const ros::Time& time, const ros::Duration& period) {
-  
+  const franka::RobotState &robot_state = state_handle_->getRobotState();
+  const std::array<double, 42> &jacobian_array =
+      model_handle_->getZeroJacobian(franka::Frame::kEndEffector);
+  const std::array<double, 7> &gravity_array = model_handle_->getGravity();
+  const std::array<double, 49> &massmatrix_array = model_handle_->getMass();
+  const std::array<double, 7> &coriolis_array = model_handle_->getCoriolis();
 
+  const std::array<double, 3ul> gravity_dir = {{0., .0, 9.81}};
+  double theta = 15.0;
+
+  std::array<double, 7> gravity2 = model_handle_->getGravity({{9.81*sin(theta*M_PI/180.0), 0.0, -9.81*cos(theta*M_PI/180.0)}});//franka::Model::gravity(robot_state, gravity_dir);
+
+  Eigen::Map<const Eigen::Matrix<double, 6, 7>> jacobian(jacobian_array.data());
+  Eigen::Map<const Eigen::Matrix<double, 7, 1>> tau_measured(robot_state.tau_J.data());
+  Eigen::Map<const Eigen::Matrix<double, 7, 1>> tau_J_d(robot_state.tau_J_d.data());
+  Eigen::Map<const Eigen::Matrix<double, 7, 1>> gravity(gravity_array.data());
+  Eigen::Map<const Eigen::Matrix<double, 7, 7>> mass_matrix(massmatrix_array.data());
+  Eigen::Map<const Eigen::Matrix<double, 7, 1>> coriolis(coriolis_array.data());
+  Eigen::Map<const Eigen::Matrix<double, 7, 1>> q(robot_state.q.data());
+  Eigen::Map<const Eigen::Matrix<double, 7, 1>> qd(robot_state.dq.data());
+  Eigen::Map<const Eigen::Matrix<double, 7, 1>> graivity_mod(gravity2.data());
+
+
+  Eigen::Matrix<double , 6, 7> jacobian_euler;
+  Eigen::Matrix<double , 12, 7> jacobian_dc;
+  Eigen::Matrix<double , 7, 1> q_goal;
+  Eigen::Matrix<double , 7, 1> q_desired;
+  Eigen::Matrix<double , 7, 1> qd_desired;
+  Eigen::Matrix<double , 12, 1> x_goal; 
+  Eigen::Matrix<double , 12, 1> x_desired;
+  Eigen::Matrix<double , 12, 1> x_current;
+  
+  for (size_t i = 0; i < 7; ++i) {
+    //joint_handles_[i].setCommand(tau_cmd(i));
+    joint_handles_[i].setCommand(0);
+  }
 
 }
 

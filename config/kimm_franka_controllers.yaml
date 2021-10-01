@@ -1,5 +1,5 @@
 basic_franka_controller:
-    type: kimm_franka_controllers/basic_franka_controller
+    type: kimm_franka_controllers/BasicFrankaController
     arm_id: panda
     joint_names:
         - panda_joint1
