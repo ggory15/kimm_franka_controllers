@@ -22,6 +22,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(Eigen3 REQUIRED)
 find_package(Franka 0.5.0 REQUIRED)
+find_package(kimm_hqp_controller REQUIRED)
 
 catkin_package(
   LIBRARIES ${PROJECT_NAME}
@@ -41,6 +42,21 @@ catkin_package(
 ## Build ##
 ###########
 
+## Franka hqp ctrl
+SET(LIBRARY_NAME franka_hqp)
+SET(${LIBRARY_NAME}_HEADERS
+  include/kimm_franka_controllers/franka_hqp.h
+)
+SET(${LIBRARY_NAME}_SOURCES
+  src/franka_hqp.cpp
+)
+ADD_HEADER_GROUP(${LIBRARY_NAME}_HEADERS)
+ADD_SOURCE_GROUP(${LIBRARY_NAME}_SOURCES)
+ADD_LIBRARY(${LIBRARY_NAME} SHARED ${${LIBRARY_NAME}_SOURCES} ${${LIBRARY_NAME}_HEADERS})
+TARGET_INCLUDE_DIRECTORIES(${LIBRARY_NAME} PUBLIC $<INSTALL_INTERFACE:include> ${kimm_hqp_controller_INCLUDE_DIRS})
+TARGET_LINK_LIBRARIES(${LIBRARY_NAME} PUBLIC ${kimm_hqp_controller_LIBRARIES})
+
+## Franka Controller for Real Robot
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
@@ -49,7 +65,7 @@ include_directories(
 )
 
 add_library(${PROJECT_NAME}
-src/basic_franka_controller.cpp
+  src/basic_franka_controller_real.cpp
 )
 
 add_dependencies(${PROJECT_NAME}
@@ -63,9 +79,19 @@ add_dependencies(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME} PUBLIC
   ${Franka_LIBRARIES}
   ${catkin_LIBRARIES}
-    ${RBDL_LIBRARY}
-
+  ${LIBRARY_NAME}
 )
+
+## Franka Controller for Simulation Robot
+add_executable(${PROJECT_NAME}_simulation src/basic_franka_controller_simul.cpp)
+target_link_libraries(${PROJECT_NAME}_simulation
+  ${catkin_LIBRARIES}
+  ${LIBRARY_NAME}
+  -lpthread
+)
+add_dependencies(${PROJECT_NAME}_simulation ${PROJECT_NAME}_gencpp)
+
+
 #############
 ## Install ##
 #############
