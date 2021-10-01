@@ -292,6 +292,12 @@ void BasicFrankaController::modeChangeReaderProc(){
               isgrasp_ = true; 
           }
           break;
+      case '\n':
+        break;
+      case '\r':
+        break;
+      default:
+        break;
     }
     
     calculation_mutex_.unlock();
