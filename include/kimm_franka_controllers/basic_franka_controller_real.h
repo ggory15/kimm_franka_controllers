@@ -95,7 +95,7 @@ class BasicFrankaController : public controller_interface::MultiInterfaceControl
       mob_.gamma_ = exp(-15. * 0.001);
       mob_.beta_ = (1- mob_.gamma_) / (mob_.gamma_ * 0.001);
 
-      mob_.coriolis_ = robot_nle_ - robot_g_;
+      mob_.coriolis_ = robot_nle_;
       mob_.p_k_ = robot_mass_ * state_.v_;
       mob_.alpha_k_ = mob_.beta_*mob_.p_k_ + franka_torque_.head(7) + mob_.coriolis_ - robot_g_;
 
@@ -107,7 +107,7 @@ class BasicFrankaController : public controller_interface::MultiInterfaceControl
       Eigen::MatrixXd J_trans = robot_J_.transpose();
       Eigen::MatrixXd J_trans_inv = J_trans.completeOrthogonalDecomposition().pseudoInverse();
 
-      mob_.d_force_ = (mob_.mass_inv_ * J_trans *mob_.lambda_).transpose() * mob_.torque_d_;
+      mob_.d_force_ = 1.2 * (mob_.mass_inv_ * J_trans *mob_.lambda_).transpose() * mob_.torque_d_;
 
       mob_.d_torque_ = -J_trans * mob_.d_force_;
       mob_.torque_d_prev_ = mob_.torque_d_;
@@ -128,6 +128,7 @@ class BasicFrankaController : public controller_interface::MultiInterfaceControl
   std::vector<hardware_interface::JointHandle> joint_handles_;
 
   actionlib::SimpleActionClient<franka_gripper::MoveAction> gripper_ac_{"/franka_gripper/move", true};
+  actionlib::SimpleActionClient<franka_gripper::GraspAction> gripper_grasp_ac_{"/franka_gripper/grasp", true};
 
   franka_gripper::GraspGoal goal;
   franka_hw::TriggerRate print_rate_trigger_{10}; 
@@ -144,6 +145,7 @@ class BasicFrankaController : public controller_interface::MultiInterfaceControl
   State state_;
 
   RobotController::FrankaWrapper * ctrl_;
+  ros::Subscriber ctrl_type_sub_;
 
   
 };

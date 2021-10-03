@@ -9,3 +9,13 @@ basic_franka_controller:
         - panda_joint5
         - panda_joint6
         - panda_joint7
+    # Configure the initial defaults for the collision behavior reflexes.
+    collision_config:
+        lower_torque_thresholds_acceleration: [100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0]  # [Nm]
+        upper_torque_thresholds_acceleration: [100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0]  # [Nm]
+        lower_torque_thresholds_nominal: [100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0]  # [Nm]
+        upper_torque_thresholds_nominal: [100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0]  # [Nm] 
+        lower_force_thresholds_acceleration: [100.0, 100.0, 100.0, 100.0, 100.0, 100.0]  # [N, N, N, Nm, Nm, Nm]
+        upper_force_thresholds_acceleration: [100.0, 100.0, 100.0, 100.0, 100.0, 100.0]  # [N, N, N, Nm, Nm, Nm]
+        lower_force_thresholds_nominal: [100.0, 100.0, 100.0, 100.0, 100.0, 100.0]  # [N, N, N, Nm, Nm, Nm]
+        upper_force_thresholds_nominal: [100.0, 100.0, 100.0, 100.0, 100.0, 100.0]  # [N, N, N, Nm, Nm, Nm]

@@ -48,12 +48,14 @@ namespace RobotController{
 
         // tasks
         postureTask_ = std::make_shared<TaskJointPosture>("task-posture", *robot_);
-        postureTask_->Kp(500.0*Vector::Ones(na_));
+        VectorXd posture_gain(na_);
+        posture_gain << 600., 600., 600., 600., 500., 400., 400.;
+        postureTask_->Kp(posture_gain);
         postureTask_->Kd(2.0*postureTask_->Kp().cwiseSqrt());
 
         Vector3d ee_offset(0.0, 0, 0.0);
         eeTask_ = std::make_shared<TaskSE3Equality>("task-se3", *robot_, "panda_joint7", ee_offset);
-        eeTask_->Kp(500.0*Vector::Ones(6));
+        eeTask_->Kp(400.0*Vector::Ones(6));
         eeTask_->Kd(2.0*eeTask_->Kp().cwiseSqrt());
         
         torqueBoundsTask_ = std::make_shared<TaskJointBounds>("task-torque-bounds", *robot_);
@@ -147,23 +149,28 @@ namespace RobotController{
                 tsid_->removeTask("task-posture");
                 tsid_->removeTask("task-torque-bounds");
 
-                tsid_->addMotionTask(*postureTask_, 1e-2, 1);
+                //tsid_->addMotionTask(*postureTask_, 1e-2, 1);
                 // tsid_->addMotionTask(*torqueBoundsTask_, 1.0, 0);
                 tsid_->addMotionTask(*eeTask_, 1, 0);
 
-                trajEE_Timeopt_->clearWaypoints();
-                trajEE_Timeopt_->setStartTime(time_);                
-                H_ee_ref_ = robot_->position(data_, robot_->model().getJointId("panda_joint7"));               
-                trajEE_Timeopt_->addWaypoint(H_ee_ref_);
-                H_ee_ref_.translation()(0) += 0.10;
-                trajEE_Timeopt_->addWaypoint(H_ee_ref_);
+                trajPosture_Cubic_->setInitSample(state_.q_.tail(na_));
+                trajPosture_Cubic_->setDuration(1.0);
+                trajPosture_Cubic_->setStartTime(time_);
+                trajPosture_Cubic_->setGoalSample(q_ref_);    
+
+                H_ee_ref_ = robot_->position(data_, robot_->model().getJointId("panda_joint7"));     
+                trajEE_Cubic_->setInitSample(H_ee_ref_);
+                trajEE_Cubic_->setDuration(3.0);
+                trajEE_Cubic_->setStartTime(time_);
+                H_ee_ref_.translation()(0) += 0.01;
+                trajEE_Cubic_->setGoalSample(H_ee_ref_);
                
                 q_ref_ = state_.q_;       
 
                 mode_change_ = false;     
             }
-            trajEE_Timeopt_->setCurrentTime(time_);
-            sampleEE_ = trajEE_Timeopt_->computeNext();
+            trajEE_Cubic_->setCurrentTime(time_);
+            sampleEE_ = trajEE_Cubic_->computeNext();
             eeTask_->setReference(sampleEE_);
 
             samplePosture_.pos = q_ref_;

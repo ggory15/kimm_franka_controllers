@@ -15,13 +15,14 @@ namespace kimm_franka_controllers
 bool BasicFrankaController::init(hardware_interface::RobotHW* robot_hw, ros::NodeHandle& node_handle)
 {
 
-  ros::Subscriber ctrl_type_sub = node_handle.subscribe("/real_robot/ctrl_type", 1, &BasicFrankaController::ctrltypeCallback, this);
+  ctrl_type_sub_ = node_handle.subscribe("/real_robot/ctrl_type", 1, &BasicFrankaController::ctrltypeCallback, this);
   ee_state_pub_ = node_handle.advertise<geometry_msgs::Transform>("ns0/real_robot/ee_state", 5);
   ee_state_msg_ = geometry_msgs::Transform();
 
   isgrasp_ = false;
   
   gripper_ac_.waitForServer();
+  gripper_grasp_ac_.waitForServer();
 
   std::vector<std::string> joint_names;
   std::string arm_id;
@@ -81,6 +82,8 @@ bool BasicFrankaController::init(hardware_interface::RobotHW* robot_hw, ros::Nod
     }
   }
 
+ 
+
   //keyboard event
   mode_change_thread_ = std::thread(&BasicFrankaController::modeChangeReaderProc, this);
 
@@ -128,6 +131,7 @@ void BasicFrankaController::update(const ros::Time& time, const ros::Duration& p
   ctrl_->franka_update(franka_q, franka_dq);
 
   // HQP thread
+  
   if (calculation_mutex_.try_lock())
   {
     calculation_mutex_.unlock();
@@ -138,7 +142,7 @@ void BasicFrankaController::update(const ros::Time& time, const ros::Duration& p
   }
 
   ros::Rate r(30000);
-  for (int i = 0; i < 9; i++)
+  for (int i = 0; i < 7; i++)
   {
     r.sleep();
     if (calculation_mutex_.try_lock())
@@ -150,13 +154,28 @@ void BasicFrankaController::update(const ros::Time& time, const ros::Duration& p
     }
   }
   
+  // ctrl_->compute(time_);
+  
+  // ctrl_->franka_output(franka_qacc_); // this is only for simulation mode
+
+  // ctrl_->state(state_);
+
+  // franka_torque_ = robot_mass_ * franka_qacc_ + robot_nle_;
+
+  // if (ctrl_->ctrltype() != 0)
+  //     UpdateMob();
+  // else
+  //     InitMob();
+
+  // this->setFrankaCommand();
+  
   // if (print_rate_trigger_()) {
   //   ROS_INFO_STREAM("tau :" << franka_torque_.transpose());
   // }
 
-  
+
    for (int i = 0; i < 7; i++)
-      joint_handles_[i].setCommand(0.0);
+      joint_handles_[i].setCommand(franka_torque_(i));
   
     time_ += 0.001;
 
@@ -165,14 +184,14 @@ void BasicFrankaController::stopping(const ros::Time& time){
     ROS_INFO("Robot Controller::stopping");
 }
 void BasicFrankaController::ctrltypeCallback(const std_msgs::Int16ConstPtr &msg){
-    calculation_mutex_.lock();
-    ROS_WARN("%d", msg->data);
+    // calculation_mutex_.lock();
+    ROS_INFO("[ctrltypeCallback] %d", msg->data);
     
     if (msg->data != 899){
         int data = msg->data;
         ctrl_->ctrl_update(data);
     }
-    else{
+    else {
         if (isgrasp_){
             isgrasp_=false;
             franka_gripper::MoveGoal goal;
@@ -182,13 +201,18 @@ void BasicFrankaController::ctrltypeCallback(const std_msgs::Int16ConstPtr &msg)
         }
         else{
             isgrasp_=true;
-            franka_gripper::MoveGoal goal;
+            franka_gripper::GraspGoal goal;
+            franka_gripper::GraspEpsilon epsilon;
+            epsilon.inner = 0.01;
+            epsilon.outer = 0.01;
             goal.speed = 0.1;
-            goal.width = 0.0;
-            gripper_ac_.sendGoal(goal);
+            goal.width = 0.03;
+            goal.force = 40.0;
+            goal.epsilon = epsilon;
+            gripper_grasp_ac_.sendGoal(goal);
         }
     }
-    calculation_mutex_.unlock();
+    // calculation_mutex_.unlock();
 }
 void BasicFrankaController::asyncCalculationProc(){
   calculation_mutex_.lock();
@@ -201,10 +225,10 @@ void BasicFrankaController::asyncCalculationProc(){
 
   franka_torque_ = robot_mass_ * franka_qacc_ + robot_nle_;
 
-  if (ctrl_->ctrltype() != 0)
-      UpdateMob();
-  else
-      InitMob();
+  // if (ctrl_->ctrltype() != 0)
+  //     UpdateMob();
+  // else
+  //     InitMob();
 
   this->setFrankaCommand();
 
@@ -219,7 +243,7 @@ void BasicFrankaController::setFrankaCommand(){
   Kd(5, 5) = 0.2;
   Kd(4, 4) = 0.2;
   Kd(6, 6) = 0.2; // this is practical term
-  franka_torque_ -= Kd * dq_filtered_;  
+ // franka_torque_ -= Kd * dq_filtered_;  
 }
 
 void BasicFrankaController::getEEState(){
@@ -283,13 +307,27 @@ void BasicFrankaController::modeChangeReaderProc(){
           cout << " " << endl;
           break;   
       case 'z': //grasp
+          msg = 899;
           if (isgrasp_){
               cout << "Release hand" << endl;
               isgrasp_ = false;
+              franka_gripper::MoveGoal goal;
+              goal.speed = 0.1;
+              goal.width = 0.08;
+              gripper_ac_.sendGoal(goal);
           }
           else{
               cout << "Grasp object" << endl;
               isgrasp_ = true; 
+              franka_gripper::GraspGoal goal;
+              franka_gripper::GraspEpsilon epsilon;
+              epsilon.inner = 0.01;
+              epsilon.outer = 0.01;
+              goal.speed = 0.1;
+              goal.width = 0.03;
+              goal.force = 40.0;
+              goal.epsilon = epsilon;
+              gripper_grasp_ac_.sendGoal(goal);
           }
           break;
       case '\n':
