@@ -162,7 +162,7 @@ namespace RobotController{
                 trajEE_Cubic_->setInitSample(H_ee_ref_);
                 trajEE_Cubic_->setDuration(3.0);
                 trajEE_Cubic_->setStartTime(time_);
-                H_ee_ref_.translation()(0) += 0.01;
+                H_ee_ref_.translation()(0) += 0.05;
                 trajEE_Cubic_->setGoalSample(H_ee_ref_);
                
                 q_ref_ = state_.q_;       

@@ -128,7 +128,7 @@ void BasicFrankaController::update(const ros::Time& time, const ros::Duration& p
   dq_filtered_ = alpha * franka_dq + (1 - alpha) * dq_filtered_;
  
   // Franka update
-  ctrl_->franka_update(franka_q, franka_dq);
+  ctrl_->franka_update(franka_q, dq_filtered_);
 
   // HQP thread
   
@@ -154,26 +154,6 @@ void BasicFrankaController::update(const ros::Time& time, const ros::Duration& p
     }
   }
   
-  // ctrl_->compute(time_);
-  
-  // ctrl_->franka_output(franka_qacc_); // this is only for simulation mode
-
-  // ctrl_->state(state_);
-
-  // franka_torque_ = robot_mass_ * franka_qacc_ + robot_nle_;
-
-  // if (ctrl_->ctrltype() != 0)
-  //     UpdateMob();
-  // else
-  //     InitMob();
-
-  // this->setFrankaCommand();
-  
-  // if (print_rate_trigger_()) {
-  //   ROS_INFO_STREAM("tau :" << franka_torque_.transpose());
-  // }
-
-
    for (int i = 0; i < 7; i++)
       joint_handles_[i].setCommand(franka_torque_(i));
   
@@ -224,12 +204,12 @@ void BasicFrankaController::asyncCalculationProc(){
   ctrl_->state(state_);
 
   franka_torque_ = robot_mass_ * franka_qacc_ + robot_nle_;
-
-  // if (ctrl_->ctrltype() != 0)
-  //     UpdateMob();
-  // else
-  //     InitMob();
-
+/*
+  if (ctrl_->ctrltype() != 0)
+       UpdateMob();
+  else
+      InitMob();
+*/
   this->setFrankaCommand();
 
   calculation_mutex_.unlock();
