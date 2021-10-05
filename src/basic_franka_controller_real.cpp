@@ -107,7 +107,9 @@ void BasicFrankaController::update(const ros::Time& time, const ros::Duration& p
   std::array<double, 7> gravity_array = model_handle_->getGravity();
   std::array<double, 49> massmatrix_array = model_handle_->getMass();
   std::array<double, 7> coriolis_array = model_handle_->getCoriolis();
-  
+  Eigen::Map<Eigen::Matrix<double, 7, 1>> tau_J_d(robot_state.tau_J_d.data());
+  robot_tau_ = tau_J_d;
+
   Eigen::Map<Vector7d> gravity(gravity_array.data());
   robot_g_ = gravity;
   Eigen::Map<Matrix7d> mass_matrix(massmatrix_array.data());
@@ -159,6 +161,12 @@ void BasicFrankaController::update(const ros::Time& time, const ros::Duration& p
   
     time_ += 0.001;
 
+  if (print_rate_trigger_())
+    {
+      ROS_INFO("--------------------------------------------------");
+      ROS_INFO_STREAM("tau :" << franka_torque_.transpose());
+    }
+
 }
 void BasicFrankaController::stopping(const ros::Time& time){
     ROS_INFO("Robot Controller::stopping");
@@ -204,6 +212,9 @@ void BasicFrankaController::asyncCalculationProc(){
   ctrl_->state(state_);
 
   franka_torque_ = robot_mass_ * franka_qacc_ + robot_nle_;
+  franka_torque_ = franka_qacc_ + robot_nle_;
+
+  franka_torque_ << this->saturateTorqueRate(franka_torque_, robot_tau_);
 /*
   if (ctrl_->ctrltype() != 0)
        UpdateMob();
@@ -213,6 +224,18 @@ void BasicFrankaController::asyncCalculationProc(){
   this->setFrankaCommand();
 
   calculation_mutex_.unlock();
+}
+
+Eigen::Matrix<double, 7, 1> BasicFrankaController::saturateTorqueRate(
+    const Eigen::Matrix<double, 7, 1>& tau_d_calculated,
+    const Eigen::Matrix<double, 7, 1>& tau_J_d) {  // NOLINT (readability-identifier-naming)
+  Eigen::Matrix<double, 7, 1> tau_d_saturated{};
+  for (size_t i = 0; i < 7; i++) {
+    double difference = tau_d_calculated[i] - tau_J_d[i];
+    tau_d_saturated[i] =
+        tau_J_d[i] + std::max(std::min(difference, delta_tau_max_), -delta_tau_max_);
+  }
+  return tau_d_saturated;
 }
 
 void BasicFrankaController::setFrankaCommand(){

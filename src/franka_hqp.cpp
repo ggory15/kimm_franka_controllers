@@ -49,7 +49,7 @@ namespace RobotController{
         // tasks
         postureTask_ = std::make_shared<TaskJointPosture>("task-posture", *robot_);
         VectorXd posture_gain(na_);
-        posture_gain << 600., 600., 600., 600., 500., 400., 400.;
+        posture_gain << 200., 200., 200., 200., 100., 100., 100.;
         postureTask_->Kp(posture_gain);
         postureTask_->Kd(2.0*postureTask_->Kp().cwiseSqrt());
 
