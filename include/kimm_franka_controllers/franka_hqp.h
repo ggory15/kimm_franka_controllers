@@ -30,7 +30,6 @@
 #include <kimm_hqp_controller/math/util.hpp>
 
 // service 
-#include "kimm_path_planner_ros_interface/action_mobile_path.h"
 #include "kimm_joint_planner_ros_interface/action_joint_path.h"
 #include "kimm_se3_planner_ros_interface/action_se3_path.h"
 

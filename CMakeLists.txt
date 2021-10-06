@@ -23,6 +23,9 @@ find_package(catkin REQUIRED COMPONENTS
 find_package(Eigen3 REQUIRED)
 find_package(Franka 0.5.0 REQUIRED)
 find_package(kimm_hqp_controller REQUIRED)
+find_package(kimm_joint_planner_ros_interface REQUIRED)
+find_package(kimm_se3_planner_ros_interface REQUIRED)
+
 
 catkin_package(
   LIBRARIES ${PROJECT_NAME}
@@ -53,7 +56,7 @@ SET(${LIBRARY_NAME}_SOURCES
 ADD_HEADER_GROUP(${LIBRARY_NAME}_HEADERS)
 ADD_SOURCE_GROUP(${LIBRARY_NAME}_SOURCES)
 ADD_LIBRARY(${LIBRARY_NAME} SHARED ${${LIBRARY_NAME}_SOURCES} ${${LIBRARY_NAME}_HEADERS})
-TARGET_INCLUDE_DIRECTORIES(${LIBRARY_NAME} PUBLIC $<INSTALL_INTERFACE:include> ${kimm_hqp_controller_INCLUDE_DIRS})
+TARGET_INCLUDE_DIRECTORIES(${LIBRARY_NAME} PUBLIC $<INSTALL_INTERFACE:include> ${kimm_hqp_controller_INCLUDE_DIRS} ${kimm_se3_planner_ros_interface_INCLUDE_DIRS} ${kimm_se3_planner_ros_interface_INCLUDE_DIRS})
 TARGET_LINK_LIBRARIES(${LIBRARY_NAME} PUBLIC ${kimm_hqp_controller_LIBRARIES})
 
 ## Franka Controller for Real Robot
