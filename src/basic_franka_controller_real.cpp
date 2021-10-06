@@ -17,6 +17,10 @@ bool BasicFrankaController::init(hardware_interface::RobotHW* robot_hw, ros::Nod
 
   node_handle.getParam("/robot_group", group_name_);
   ctrl_type_sub_ = node_handle.subscribe("/" + group_name_ + "/real_robot/ctrl_type", 1, &BasicFrankaController::ctrltypeCallback, this);
+  
+  torque_state_pub_ = node_handle.advertise<mujoco_ros_msgs::JointSet>("/" + group_name_ + "/real_robot/joint_set", 5);
+  joint_state_pub_ = node_handle.advertise<sensor_msgs::JointState>("/" + group_name_ + "/real_robot/joint_states", 5);
+
   ee_state_pub_ = node_handle.advertise<geometry_msgs::Transform>("/" + group_name_ + "/real_robot/ee_state", 5);
   ee_state_msg_ = geometry_msgs::Transform();
 
@@ -98,6 +102,9 @@ bool BasicFrankaController::init(hardware_interface::RobotHW* robot_hw, ros::Nod
 void BasicFrankaController::starting(const ros::Time& time) {
   dq_filtered_.setZero();
   time_ = 0.;
+  robot_command_msg_.torque.resize(7);
+  robot_state_msg_.position.resize(9);
+  robot_state_msg_.velocity.resize(9);   
 }
 
 
@@ -132,6 +139,10 @@ void BasicFrankaController::update(const ros::Time& time, const ros::Duration& p
  
   // Franka update
   ctrl_->franka_update(franka_q, dq_filtered_);
+  for (int i=0; i<7; i++){
+      robot_state_msg_.position[i] = franka_q(i);
+      robot_state_msg_.velocity[i] = dq_filtered_(i);
+    }
 
   // HQP thread
   
@@ -158,9 +169,13 @@ void BasicFrankaController::update(const ros::Time& time, const ros::Duration& p
   }
   
    for (int i = 0; i < 7; i++)
-      joint_handles_[i].setCommand(franka_torque_(i));
+      joint_handles_[i].setCommand(0.0);
   
     time_ += 0.001;
+    time_msg_.data = time_;
+    time_pub_.publish(time_msg_);
+    joint_state_pub_.publish(robot_state_msg_);
+    torque_state_pub_.publish(robot_command_msg_);
 
   if (print_rate_trigger_())
     {
@@ -212,7 +227,7 @@ void BasicFrankaController::asyncCalculationProc(){
 
   ctrl_->state(state_);
 
-  franka_torque_ = robot_mass_ * franka_qacc_ + robot_nle_;
+  //franka_torque_ = robot_mass_ * franka_qacc_ + robot_nle_;
   franka_torque_ = franka_qacc_ + robot_nle_;
 
   franka_torque_ << this->saturateTorqueRate(franka_torque_, robot_tau_);
@@ -248,6 +263,13 @@ void BasicFrankaController::setFrankaCommand(){
   Kd(4, 4) = 0.2;
   Kd(6, 6) = 0.2; // this is practical term
  // franka_torque_ -= Kd * dq_filtered_;  
+
+  robot_command_msg_.MODE = 1;
+  robot_command_msg_.header.stamp = ros::Time::now();
+  robot_command_msg_.time = time_;
+
+  for (int i=0; i<7; i++)
+      robot_command_msg_.torque[i] = franka_torque_(i);   
 }
 
 void BasicFrankaController::getEEState(){

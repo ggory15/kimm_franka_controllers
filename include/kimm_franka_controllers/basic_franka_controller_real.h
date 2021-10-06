@@ -20,6 +20,7 @@
 #include "nav_msgs/Odometry.h"
 #include <ros/package.h>
 #include <realtime_tools/realtime_publisher.h>
+#include "mujoco_ros_msgs/JointSet.h"
 
 // Franka
 #include <franka/robot_state.h>
@@ -115,11 +116,13 @@ class BasicFrankaController : public controller_interface::MultiInterfaceControl
   }
 
  private: 
-  ros::Publisher ee_state_pub_, robot_command_pub_;
+  ros::Publisher ee_state_pub_, torque_state_pub_, joint_state_pub_, time_pub_;
   
   geometry_msgs::Transform ee_state_msg_;
+  std_msgs::Float32 time_msg_;
   mujoco_ros_msgs::JointSet robot_command_msg_;
-
+  sensor_msgs::JointState robot_state_msg_;
+  
   // thread
   std::mutex calculation_mutex_;
   std::thread async_calculation_thread_, mode_change_thread_;
