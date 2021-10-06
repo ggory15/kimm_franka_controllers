@@ -15,9 +15,9 @@ namespace kimm_franka_controllers
 bool BasicFrankaController::init(hardware_interface::RobotHW* robot_hw, ros::NodeHandle& node_handle)
 {
 
-  ctrl_type_sub_ = node_handle.subscribe("/real_robot/ctrl_type", 1, &BasicFrankaController::ctrltypeCallback, this);
-  node_handle.getParam("/robot_group", group_name_);    
-  ee_state_pub_ = node_handle.advertise<geometry_msgs::Transform>(group_name_ + "/real_robot/ee_state", 5);
+  node_handle.getParam("/robot_group", group_name_);
+  ctrl_type_sub_ = node_handle.subscribe("/" + group_name_ + "/real_robot/ctrl_type", 1, &BasicFrankaController::ctrltypeCallback, this);
+  ee_state_pub_ = node_handle.advertise<geometry_msgs::Transform>("/" + group_name_ + "/real_robot/ee_state", 5);
   ee_state_msg_ = geometry_msgs::Transform();
 
   isgrasp_ = false;

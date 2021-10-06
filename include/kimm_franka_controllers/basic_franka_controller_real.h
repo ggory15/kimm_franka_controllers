@@ -115,8 +115,10 @@ class BasicFrankaController : public controller_interface::MultiInterfaceControl
   }
 
  private: 
-  ros::Publisher ee_state_pub_;
+  ros::Publisher ee_state_pub_, robot_command_pub_;
+  
   geometry_msgs::Transform ee_state_msg_;
+  mujoco_ros_msgs::JointSet robot_command_msg_;
 
   // thread
   std::mutex calculation_mutex_;
