@@ -20,6 +20,7 @@ ros::Publisher ee_state_pub_;
 mujoco_ros_msgs::JointSet robot_command_msg_;
 geometry_msgs::Transform ee_state_msg_;
 
+
 double mujoco_time_, time_;
 bool isgrasp_;
 Eigen::VectorXd franka_qacc_, robot_nle_, robot_g_, franka_torque_;

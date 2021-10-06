@@ -14,11 +14,14 @@ int main(int argc, char **argv)
     ros::Rate loop_rate(1000);
 
     // Robot Wapper
-    ctrl_ = new RobotController::FrankaWrapper("ns0", true, n_node);
+    string group_name;
+    n_node.getParam("/robot_group", group_name);    
+    ctrl_ = new RobotController::FrankaWrapper(group_name, true, n_node);
     ctrl_->initialize();
 
     // mujoco sub
     ros::Subscriber jointState = n_node.subscribe("/mujoco_ros_interface/joint_states", 5, &JointStateCallback, ros::TransportHints().tcpNoDelay(true));
+    
     ros::Subscriber mujoco_command_sub = n_node.subscribe("/mujoco_ros_interface/sim_command_sim2con", 5, &simCommandCallback, ros::TransportHints().tcpNoDelay(true));
     ros::Subscriber mujoco_time_sub = n_node.subscribe("/mujoco_ros_interface/sim_time", 1, &simTimeCallback, ros::TransportHints().tcpNoDelay(true));
     ros::Subscriber ctrl_type_sub = n_node.subscribe("/mujoco_ros_interface/ctrl_type", 1, &ctrltypeCallback, ros::TransportHints().tcpNoDelay(true));
@@ -28,7 +31,7 @@ int main(int argc, char **argv)
     robot_command_pub_ = n_node.advertise<mujoco_ros_msgs::JointSet>("/mujoco_ros_interface/joint_set", 5);
 
     // robot pub
-    ee_state_pub_ = n_node.advertise<geometry_msgs::Transform>("ns0/mujoco_ros_interface/ee_state", 5);
+    ee_state_pub_ = n_node.advertise<geometry_msgs::Transform>("/mujoco_ros_interface/ee_state", 5);
 
     // msg 
     robot_command_msg_.torque.resize(9); // gripper(2) + wheels(4) + robot (7)
@@ -60,6 +63,7 @@ int main(int argc, char **argv)
         setGripperCommand();
         setRobotCommand();
         robot_command_pub_.publish(robot_command_msg_);
+       
 
         getEEState();
         

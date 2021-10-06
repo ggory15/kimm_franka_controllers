@@ -107,7 +107,7 @@ class BasicFrankaController : public controller_interface::MultiInterfaceControl
       Eigen::MatrixXd J_trans = robot_J_.transpose();
       Eigen::MatrixXd J_trans_inv = J_trans.completeOrthogonalDecomposition().pseudoInverse();
 
-      mob_.d_force_ = 1.2 * (mob_.mass_inv_ * J_trans *mob_.lambda_).transpose() * mob_.torque_d_;
+      mob_.d_force_ = 1.0 * (mob_.mass_inv_ * J_trans *mob_.lambda_).transpose() * mob_.torque_d_;
 
       mob_.d_torque_ = -J_trans * mob_.d_force_;
       mob_.torque_d_prev_ = mob_.torque_d_;
@@ -126,6 +126,7 @@ class BasicFrankaController : public controller_interface::MultiInterfaceControl
   std::unique_ptr<franka_hw::FrankaModelHandle> model_handle_;
   std::unique_ptr<franka_hw::FrankaStateHandle> state_handle_;
   std::vector<hardware_interface::JointHandle> joint_handles_;
+  std::string group_name_;
 
   actionlib::SimpleActionClient<franka_gripper::MoveAction> gripper_ac_{"/franka_gripper/move", true};
   actionlib::SimpleActionClient<franka_gripper::GraspAction> gripper_grasp_ac_{"/franka_gripper/grasp", true};

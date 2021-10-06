@@ -16,7 +16,8 @@ bool BasicFrankaController::init(hardware_interface::RobotHW* robot_hw, ros::Nod
 {
 
   ctrl_type_sub_ = node_handle.subscribe("/real_robot/ctrl_type", 1, &BasicFrankaController::ctrltypeCallback, this);
-  ee_state_pub_ = node_handle.advertise<geometry_msgs::Transform>("ns0/real_robot/ee_state", 5);
+  node_handle.getParam("/robot_group", group_name_);    
+  ee_state_pub_ = node_handle.advertise<geometry_msgs::Transform>(group_name_ + "/real_robot/ee_state", 5);
   ee_state_msg_ = geometry_msgs::Transform();
 
   isgrasp_ = false;
@@ -87,7 +88,7 @@ bool BasicFrankaController::init(hardware_interface::RobotHW* robot_hw, ros::Nod
   //keyboard event
   mode_change_thread_ = std::thread(&BasicFrankaController::modeChangeReaderProc, this);
 
-  ctrl_ = new RobotController::FrankaWrapper("ns0", false, node_handle);
+  ctrl_ = new RobotController::FrankaWrapper(group_name_, false, node_handle);
   ctrl_->initialize();
 
   

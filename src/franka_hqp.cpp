@@ -26,6 +26,7 @@ namespace RobotController{
         string model_path, urdf_name;
         n_node_.getParam("/" + robot_node_ +"/robot_urdf_path", model_path);    
         n_node_.getParam("/" + robot_node_ +"/robot_urdf", urdf_name);  
+
         vector<string> package_dirs;
         package_dirs.push_back(model_path);
         string urdfFileName = package_dirs[0] + urdf_name;
@@ -49,7 +50,11 @@ namespace RobotController{
         // tasks
         postureTask_ = std::make_shared<TaskJointPosture>("task-posture", *robot_);
         VectorXd posture_gain(na_);
-        posture_gain << 200., 200., 200., 200., 100., 100., 100.;
+        if (!issimulation_)
+        	posture_gain << 200., 200., 200., 200., 100., 100., 100.;
+        else
+        	posture_gain << 400., 400., 400., 400., 400., 400., 400.;
+        	
         postureTask_->Kp(posture_gain);
         postureTask_->Kd(2.0*postureTask_->Kp().cwiseSqrt());
 
@@ -81,8 +86,8 @@ namespace RobotController{
         solver_ = SolverHQPFactory::createNewSolver(SOLVER_HQP_QPOASES, "qpoases");           
 
         // service
-        joint_action_client_ = n_node_.serviceClient<kimm_joint_planner_ros_interface::action_joint_path>("/ns0/kimm_joint_planner_ros_interface_server/action_joint_path");
-        se3_action_client_ = n_node_.serviceClient<kimm_se3_planner_ros_interface::action_se3_path>("/ns0/kimm_se3_planner_ros_interface_server/action_se3_path");    
+        joint_action_client_ = n_node_.serviceClient<kimm_joint_planner_ros_interface::action_joint_path>("/" + robot_node_ + "/kimm_joint_planner_ros_interface_server/action_joint_path");
+        se3_action_client_ = n_node_.serviceClient<kimm_se3_planner_ros_interface::action_se3_path>("/" + robot_node_ + "/kimm_se3_planner_ros_interface_server/action_se3_path");    
     }
     
     void FrankaWrapper::franka_update(const sensor_msgs::JointState::ConstPtr& msg){
@@ -183,354 +188,168 @@ namespace RobotController{
         }
 
 
-
-        // ///////////////////////// Predefined CTRL for GUI //////////////////////////////////////////////////
-        // if (ctrl_mode_ == 900){ // joint ctrl
-        //     if (mode_change_){
-        //         action_joint_srv_.request.test.data = true;
-        //         joint_action_client_.call(action_joint_srv_);
+        if (ctrl_mode_ == 900){ // joint ctrl
+            if (mode_change_){
+                action_joint_srv_.request.test.data = true;
+                joint_action_client_.call(action_joint_srv_);
                 
-        //         node_num_ = action_joint_srv_.response.res_traj.size() -1;
+                node_num_ = action_joint_srv_.response.res_traj.size() -1;
                 
-        //         tsid_->removeTask("task-mobile");
-        //         tsid_->removeTask("task-mobile2");
-        //         tsid_->removeTask("task-se3");
-        //         tsid_->removeTask("task-posture");
-        //         tsid_->removeTask("task-torque-bounds");
+                tsid_->removeTask("task-se3");
+                tsid_->removeTask("task-posture");
+                tsid_->removeTask("task-torque-bounds");
 
-        //         tsid_->addMotionTask(*postureTask_, 1e-5, 1);
-        //         tsid_->addMotionTask(*torqueBoundsTask_, 1.0, 0);
+                tsid_->addMotionTask(*postureTask_, 1e-5, 1);
+                tsid_->addMotionTask(*torqueBoundsTask_, 1.0, 0);
 
-        //         mode_change_ = false;
-        //         update_weight_ = false;
-        //         stime_ = time_;
+                mode_change_ = false;
+                update_weight_ = false;
+                stime_ = time_;
 
-        //         prev_node_ = -1;
-        //         node_index_ = 0;
-        //         q_ref_ = state_.q_.tail(na_-2); 
-        //         VectorXd Kp, Kd;
-        //         Kp.setOnes(na_-2);
-        //         Kd.setOnes(na_-2);
-        //         for (int i=0; i<na_-2; i++){
-        //             Kp(i) = action_joint_srv_.response.kp[i];
-        //             Kd(i) = action_joint_srv_.response.kv[i];
-        //         }
-        //         postureTask_->Kp(Kp);
-        //         postureTask_->Kd(Kd);
-        //     }           
+                prev_node_ = -1;
+                node_index_ = 0;
+                q_ref_ = state_.q_.tail(na_); 
+                VectorXd Kp, Kd;
+                Kp.setOnes(na_);
+                Kd.setOnes(na_);
+                for (int i=0; i<na_; i++){
+                    Kp(i) = action_joint_srv_.response.kp[i];
+                    Kd(i) = action_joint_srv_.response.kv[i];
+                }
+                postureTask_->Kp(Kp);
+                postureTask_->Kd(Kd);
+            }           
 
-        //     samplePosture_.pos.setZero(na_-2);
-        //     samplePosture_.vel.setZero(na_-2);
-        //     samplePosture_.acc.setZero(na_-2);
+            samplePosture_.pos.setZero(na_);
+            samplePosture_.vel.setZero(na_);
+            samplePosture_.acc.setZero(na_);
            
-        //     if (node_num_ == -1){
-        //         samplePosture_.pos = q_ref_;
-        //     }
-        //     else{
-        //         if (node_index_ < node_num_){
-        //             if (prev_node_ != node_index_){      
-        //                 for (int i=0; i<na_-2; i++)
-        //                     samplePosture_.pos(i) = action_joint_srv_.response.res_traj[node_index_].position[i];
-        //                 node_index_ += 1;      
-        //             }           
-        //         }
-        //         else{
-        //             for (int i=0; i<na_-2; i++)
-        //                 samplePosture_.pos(i) = action_joint_srv_.response.res_traj[node_num_].position[i];
-        //         }
-        //     }
-        //     postureTask_->setReference(samplePosture_);
+            if (node_num_ == -1){
+                samplePosture_.pos = q_ref_;
+            }
+            else{
+                if (node_index_ < node_num_){
+                    if (prev_node_ != node_index_){      
+                        for (int i=0; i<na_; i++)
+                            samplePosture_.pos(i) = action_joint_srv_.response.res_traj[node_index_].position[i];
+                        node_index_ += 1;      
+                    }           
+                }
+                else{
+                    for (int i=0; i<na_; i++)
+                        samplePosture_.pos(i) = action_joint_srv_.response.res_traj[node_num_].position[i];
+                }
+            }
+            postureTask_->setReference(samplePosture_);
 
-        //     const HQPData & HQPData = tsid_->computeProblemData(time_, state_.q_, state_.v_);       
-        //     const HQPOutput & sol = solver_->solve(HQPData);
+            const HQPData & HQPData = tsid_->computeProblemData(time_, state_.q_, state_.v_);       
+            const HQPOutput & sol = solver_->solve(HQPData);
 
-        //     state_.torque_.tail(na_ -2) = tsid_->getAccelerations(solver_->solve(HQPData)).tail(na_-2);
-        //     state_.torque_.head(2).setZero();
-        // }
-        // if (ctrl_mode_ == 901){ // base ctrl
-        //     if (mode_change_){
-        //         action_mobile_srv_.request.test.data = true;
-        //         mobile_action_client_.call(action_mobile_srv_);
-                
-        //         node_num_ = action_mobile_srv_.response.mobile_path.points.size() -1;
-        //         tsid_->removeTask("task-posture");
-        //         tsid_->removeTask("task-torque-bounds");
-        //         tsid_->removeTask("task-mobile");
-        //         tsid_->removeTask("task-mobile2");
-        //         tsid_->removeTask("task-se3");
+            state_.torque_ = tsid_->getAccelerations(solver_->solve(HQPData));
+        }
 
-        //         H_mobile_ref_ = robot_->getMobilePosition(data_, 5);
-        //         double theta = atan2(-H_mobile_ref_.rotation()(0, 1), H_mobile_ref_.rotation()(0,0));
-                
-        //         tsid_->addMotionTask(*mobileTask_, 0.1, 1);
-        //         tsid_->addMotionTask(*mobileTask2_, 1, 1);
-        //         tsid_->addMotionTask(*postureTask_, 1e-5, 1);
-        //         tsid_->addMotionTask(*torqueBoundsTask_, 1.0, 0);
-
-        //         trajMobile_Cubic_->setStartTime(time_);
-        //         trajMobile_Cubic_->setDuration(0.001);
-        //         trajMobile_Cubic_->setGoalSample(H_mobile_ref_);
-        //         trajMobile_Cubic_->setInitSample(robot_->getMobilePosition(data_, 5));
-
-        //         mode_change_ = false;
-        //         update_weight_ = false;
-        //         stime_ = time_;
-
-        //         prev_node_ = -1;
-        //         node_index_ = 0;
-
-        //         trajPosture_Cubic_->setInitSample(state_.q_.tail(na_-2));
-        //         trajPosture_Cubic_->setDuration(1.0);
-        //         trajPosture_Cubic_->setStartTime(time_);
-        //         trajPosture_Cubic_->setGoalSample(state_.q_.tail(na_-2));    
-        //     }           
-
-        //     Vector3d goal_path; 
-        //     if (node_num_ != -1){
-        //         goal_path << action_mobile_srv_.response.mobile_path.points[node_index_].x, action_mobile_srv_.response.mobile_path.points[node_index_].y, action_mobile_srv_.response.mobile_path.points[node_index_].theta; 
-        //         H_mobile_ref_.translation().head(2) = goal_path.head(2);
-
-        //         H_mobile_ref_.rotation().setIdentity();
-        //         H_mobile_ref_.rotation()(0, 0) = cos(goal_path(2));
-        //         H_mobile_ref_.rotation()(0, 1) = -sin(goal_path(2));
-        //         H_mobile_ref_.rotation()(1, 0) = sin(goal_path(2));
-        //         H_mobile_ref_.rotation()(1, 1) = cos(goal_path(2));
-        //     }            
-           
-        //     if (node_index_ < node_num_){
-        //         if (prev_node_ != node_index_){                   
-        //             trajMobile_Cubic_->setStartTime(time_);
-        //             trajMobile_Cubic_->setDuration(0.001);
-        //             trajMobile_Cubic_->setGoalSample(H_mobile_ref_);
-        //             trajMobile_Cubic_->setInitSample(robot_->getMobilePosition(data_, 5));
-
-        //             prev_node_ = node_index_;
-        //             stime_ = time_;
-        //         }
-
-        //         if (stime_ + 0.1 <= time_)
-        //             node_index_ += 1;              
-        //     }
-        //     else{
-        //         if (!update_weight_){
-        //             tsid_->updateTaskWeight("task-mobile", 1.);
-        //             tsid_->updateTaskWeight("task-mobile2", 0.01);
-
-        //             trajMobile_Cubic_->setStartTime(time_);
-        //             trajMobile_Cubic_->setDuration(1.5);
-        //             trajMobile_Cubic_->setGoalSample(H_mobile_ref_);
-        //             trajMobile_Cubic_->setInitSample(robot_->getMobilePosition(data_, 5));
-
-        //             update_weight_ = true;
-        //         }         
-        //     }
-
-        //     trajMobile_Cubic_->setCurrentTime(time_);
-        //     sampleMobile_ = trajMobile_Cubic_->computeNext();
-
-        //     mobileTask2_-> setReference(sampleMobile_);
-        //     mobileTask_ -> setReference(sampleMobile_);
-           
-        //     trajPosture_Cubic_->setCurrentTime(time_);
-        //     samplePosture_ = trajPosture_Cubic_->computeNext();
-        //     postureTask_->setReference(samplePosture_);
-
-        //     const HQPData & HQPData = tsid_->computeProblemData(time_, state_.q_, state_.v_);       
-        //     const HQPOutput & sol = solver_->solve(HQPData);
-
-        //     state_.torque_.tail(na_ -2) = tsid_->getAccelerations(solver_->solve(HQPData)).tail(na_-2);
-        //     state_.torque_.head(2) = tsid_->getAccelerations(solver_->solve(HQPData)).head(2);
-        // }
-        // if (ctrl_mode_ == 902){ //base forward
-        //     if (mode_change_){
-        //         stime_ = time_;
-        //         tsid_->removeTask("task-posture");
-        //         tsid_->removeTask("task-torque-bounds");
-        //         tsid_->removeTask("task-mobile");
-        //         tsid_->removeTask("task-mobile2");
-        //         tsid_->removeTask("task-se3");
-
-        //         tsid_->addMotionTask(*postureTask_, 1e-5, 1);
-        //         tsid_->addMotionTask(*torqueBoundsTask_, 1.0, 0);
-
-        //         trajPosture_Cubic_->setInitSample(state_.q_.tail(na_-2));
-        //         trajPosture_Cubic_->setDuration(1.0);
-        //         trajPosture_Cubic_->setStartTime(time_);
-        //         trajPosture_Cubic_->setGoalSample(state_.q_.tail(na_-2));  
-
-        //         mode_change_ = false;
-        //     }
-        //     if (stime_ + 2.0 > time_){
-        //         state_.torque_(0) = 5.0;
-        //         state_.torque_(1) = 5.0;
-        //     }
-        //     else{
-        //         state_.torque_(0) = 0.0;
-        //         state_.torque_(1) = 0.0;
-        //     }
-        //     trajPosture_Cubic_->setCurrentTime(time_);
-        //     samplePosture_ = trajPosture_Cubic_->computeNext();
-        //     postureTask_->setReference(samplePosture_);
-
-        //     const HQPData & HQPData = tsid_->computeProblemData(time_, state_.q_, state_.v_);       
-        //     const HQPOutput & sol = solver_->solve(HQPData);
-
-        //     state_.torque_.tail(na_ -2) = tsid_->getAccelerations(solver_->solve(HQPData)).tail(na_-2); 
-        // }
-        // if (ctrl_mode_ == 903){ //base backward
-        //     if (mode_change_){
-        //         stime_ = time_;
-        //         tsid_->removeTask("task-posture");
-        //         tsid_->removeTask("task-torque-bounds");
-        //         tsid_->removeTask("task-mobile");
-        //         tsid_->removeTask("task-mobile2");
-        //         tsid_->removeTask("task-se3");
-
-        //         tsid_->addMotionTask(*postureTask_, 1e-5, 1);
-        //         tsid_->addMotionTask(*torqueBoundsTask_, 1.0, 0);
-
-        //         trajPosture_Cubic_->setInitSample(state_.q_.tail(na_-2));
-        //         trajPosture_Cubic_->setDuration(1.0);
-        //         trajPosture_Cubic_->setStartTime(time_);
-        //         trajPosture_Cubic_->setGoalSample(state_.q_.tail(na_-2));  
-
-        //         mode_change_ = false;
-        //     }
-        //     if (stime_ + 2.0 > time_){
-        //         state_.torque_(0) = -5.0;
-        //         state_.torque_(1) = -5.0;
-        //     }
-        //     else{
-        //         state_.torque_(0) = 0.0;
-        //         state_.torque_(1) = 0.0;
-        //     }
-        //     trajPosture_Cubic_->setCurrentTime(time_);
-        //     samplePosture_ = trajPosture_Cubic_->computeNext();
-        //     postureTask_->setReference(samplePosture_);
-
-        //     const HQPData & HQPData = tsid_->computeProblemData(time_, state_.q_, state_.v_);       
-        //     const HQPOutput & sol = solver_->solve(HQPData);
-
-        //     state_.torque_.tail(na_ -2) = tsid_->getAccelerations(solver_->solve(HQPData)).tail(na_-2); 
-        // }
-        // if (ctrl_mode_ == 904){ // se3 ctrl
-        //     if (mode_change_){
-        //         action_se3_srv_.request.test.data = true;
-        //         se3_action_client_.call(action_se3_srv_);
+        if (ctrl_mode_ == 901){ // se3 ctrl
+            if (mode_change_){
+                action_se3_srv_.request.test.data = true;
+                se3_action_client_.call(action_se3_srv_);
                
-        //         node_num_ = action_se3_srv_.response.res_traj.size() -1;
+                node_num_ = action_se3_srv_.response.res_traj.size() -1;
 
-        //         tsid_->removeTask("task-mobile");
-        //         tsid_->removeTask("task-mobile2");
-        //         tsid_->removeTask("task-se3");
-        //         tsid_->removeTask("task-posture");
-        //         tsid_->removeTask("task-torque-bounds");
+                tsid_->removeTask("task-se3");
+                tsid_->removeTask("task-posture");
+                tsid_->removeTask("task-torque-bounds");
 
-        //         tsid_->addMotionTask(*eeTask_, 1, 1);
-        //         tsid_->addMotionTask(*postureTask_, 1e-5, 1);
-        //         tsid_->addMotionTask(*torqueBoundsTask_, 1.0, 0);
+                tsid_->addMotionTask(*eeTask_, 1, 1);
+                tsid_->addMotionTask(*postureTask_, 1e-5, 1);
+                tsid_->addMotionTask(*torqueBoundsTask_, 1.0, 0);
 
-        //         if (!action_se3_srv_.response.iswholebody.data){
-        //             tsid_->addMotionTask(*mobileTask_, 1, 0);
-        //             trajMobile_Cubic_->setStartTime(time_);
-        //             trajMobile_Cubic_->setDuration(0.001);
-        //             trajMobile_Cubic_->setGoalSample(robot_->getMobilePosition(data_, 5));
-        //             trajMobile_Cubic_->setInitSample(robot_->getMobilePosition(data_, 5));
-        //         }
+                mode_change_ = false;
+                update_weight_ = false;
+                stime_ = time_;
 
-        //         mode_change_ = false;
-        //         update_weight_ = false;
-        //         stime_ = time_;
+                prev_node_ = -1;
+                node_index_ = 0;
 
-        //         prev_node_ = -1;
-        //         node_index_ = 0;
+                H_ee_ref_ = robot_->position(data_, robot_->model().getJointId("panda_joint7"));
+                VectorXd Kp, Kd;
+                Kp.setOnes(6);
+                Kd.setOnes(6);
+                for (int i=0; i<6; i++){
+                    Kp(i) = action_se3_srv_.response.kp[i];
+                    Kd(i) = action_se3_srv_.response.kv[i];
+                }
 
-        //         H_ee_ref_ = robot_->position(data_, robot_->model().getJointId("panda_joint7"));
-        //         VectorXd Kp, Kd;
-        //         Kp.setOnes(6);
-        //         Kd.setOnes(6);
-        //         for (int i=0; i<6; i++){
-        //             Kp(i) = action_se3_srv_.response.kp[i];
-        //             Kd(i) = action_se3_srv_.response.kv[i];
-        //         }
+                trajPosture_Cubic_->setInitSample(state_.q_);
+                trajPosture_Cubic_->setDuration(1.0);
+                trajPosture_Cubic_->setStartTime(time_);
+                trajPosture_Cubic_->setGoalSample(state_.q_);  
 
-        //         trajPosture_Cubic_->setInitSample(state_.q_.tail(na_-2));
-        //         trajPosture_Cubic_->setDuration(1.0);
-        //         trajPosture_Cubic_->setStartTime(time_);
-        //         trajPosture_Cubic_->setGoalSample(state_.q_.tail(na_-2));  
+            }           
 
-        //     }           
+            sampleEE_.pos.setZero(12);
+            sampleEE_.vel.setZero(6);
+            sampleEE_.acc.setZero(6);
+            Eigen::Matrix3d rot;
+            Eigen::Quaterniond quat;
 
-        //     sampleEE_.pos.setZero(12);
-        //     sampleEE_.vel.setZero(6);
-        //     sampleEE_.acc.setZero(6);
-        //     Eigen::Matrix3d rot;
-        //     Eigen::Quaterniond quat;
+            if (node_num_ == -1){
+                sampleEE_.pos.head(3) = H_ee_ref_.translation();
+                sampleEE_.pos.segment(3,3) = H_ee_ref_.rotation().col(0);
+                sampleEE_.pos.segment(6,3) = H_ee_ref_.rotation().col(1);
+                sampleEE_.pos.tail(3) = H_ee_ref_.rotation().col(2);
+            }
+            else{
+                if (node_index_ < node_num_){
+                    if (prev_node_ != node_index_){   
+                        sampleEE_.pos(0) = action_se3_srv_.response.res_traj[node_index_].translation.x;
+                        sampleEE_.pos(1) = action_se3_srv_.response.res_traj[node_index_].translation.y;
+                        sampleEE_.pos(2) = action_se3_srv_.response.res_traj[node_index_].translation.z;
+                        quat.x() = action_se3_srv_.response.res_traj[node_index_].rotation.x;
+                        quat.y() = action_se3_srv_.response.res_traj[node_index_].rotation.y;
+                        quat.z() = action_se3_srv_.response.res_traj[node_index_].rotation.z;
+                        quat.w() = action_se3_srv_.response.res_traj[node_index_].rotation.w;
+                        rot = quat.toRotationMatrix();
 
-        //     if (node_num_ == -1){
-        //         sampleEE_.pos.head(3) = H_ee_ref_.translation();
-        //         sampleEE_.pos.segment(3,3) = H_ee_ref_.rotation().col(0);
-        //         sampleEE_.pos.segment(6,3) = H_ee_ref_.rotation().col(1);
-        //         sampleEE_.pos.tail(3) = H_ee_ref_.rotation().col(2);
-        //     }
-        //     else{
-        //         if (node_index_ < node_num_){
-        //             if (prev_node_ != node_index_){   
-        //                 sampleEE_.pos(0) = action_se3_srv_.response.res_traj[node_index_].translation.x;
-        //                 sampleEE_.pos(1) = action_se3_srv_.response.res_traj[node_index_].translation.y;
-        //                 sampleEE_.pos(2) = action_se3_srv_.response.res_traj[node_index_].translation.z;
-        //                 quat.x() = action_se3_srv_.response.res_traj[node_index_].rotation.x;
-        //                 quat.y() = action_se3_srv_.response.res_traj[node_index_].rotation.y;
-        //                 quat.z() = action_se3_srv_.response.res_traj[node_index_].rotation.z;
-        //                 quat.w() = action_se3_srv_.response.res_traj[node_index_].rotation.w;
-        //                 rot = quat.toRotationMatrix();
-
-        //                 sampleEE_.pos.segment(3,3) = rot.col(0);
-        //                 sampleEE_.pos.segment(6,3) = rot.col(1);
-        //                 sampleEE_.pos.tail(3) = rot.col(2);     
+                        sampleEE_.pos.segment(3,3) = rot.col(0);
+                        sampleEE_.pos.segment(6,3) = rot.col(1);
+                        sampleEE_.pos.tail(3) = rot.col(2);     
                         
-        //                 sampleEE_.pos.segment(3,3) = H_ee_ref_.rotation().col(0);
-        //                 sampleEE_.pos.segment(6,3) = H_ee_ref_.rotation().col(1);
-        //                 sampleEE_.pos.tail(3) = H_ee_ref_.rotation().col(2);
-        //                 node_index_ += 1;      
-        //             }           
-        //         }
-        //         else{
-        //             sampleEE_.pos(0) = action_se3_srv_.response.res_traj[node_num_].translation.x;
-        //             sampleEE_.pos(1) = action_se3_srv_.response.res_traj[node_num_].translation.y;
-        //             sampleEE_.pos(2) = action_se3_srv_.response.res_traj[node_num_].translation.z;
-        //             quat.x() = action_se3_srv_.response.res_traj[node_num_].rotation.x;
-        //             quat.y() = action_se3_srv_.response.res_traj[node_num_].rotation.y;
-        //             quat.z() = action_se3_srv_.response.res_traj[node_num_].rotation.z;
-        //             quat.w() = action_se3_srv_.response.res_traj[node_num_].rotation.w;
-        //             rot = quat.toRotationMatrix();
+                        sampleEE_.pos.segment(3,3) = H_ee_ref_.rotation().col(0);
+                        sampleEE_.pos.segment(6,3) = H_ee_ref_.rotation().col(1);
+                        sampleEE_.pos.tail(3) = H_ee_ref_.rotation().col(2);
+                        node_index_ += 1;      
+                    }           
+                }
+                else{
+                    sampleEE_.pos(0) = action_se3_srv_.response.res_traj[node_num_].translation.x;
+                    sampleEE_.pos(1) = action_se3_srv_.response.res_traj[node_num_].translation.y;
+                    sampleEE_.pos(2) = action_se3_srv_.response.res_traj[node_num_].translation.z;
+                    quat.x() = action_se3_srv_.response.res_traj[node_num_].rotation.x;
+                    quat.y() = action_se3_srv_.response.res_traj[node_num_].rotation.y;
+                    quat.z() = action_se3_srv_.response.res_traj[node_num_].rotation.z;
+                    quat.w() = action_se3_srv_.response.res_traj[node_num_].rotation.w;
+                    rot = quat.toRotationMatrix();
 
-        //             sampleEE_.pos.segment(3,3) = rot.col(0);
-        //             sampleEE_.pos.segment(6,3) = rot.col(1);
-        //             sampleEE_.pos.tail(3) = rot.col(2);      
+                    sampleEE_.pos.segment(3,3) = rot.col(0);
+                    sampleEE_.pos.segment(6,3) = rot.col(1);
+                    sampleEE_.pos.tail(3) = rot.col(2);      
 
-        //             sampleEE_.pos.segment(3,3) = H_ee_ref_.rotation().col(0);
-        //             sampleEE_.pos.segment(6,3) = H_ee_ref_.rotation().col(1);
-        //             sampleEE_.pos.tail(3) = H_ee_ref_.rotation().col(2);  
-        //         }
-        //     }
-        //     eeTask_->setReference(sampleEE_);
+                    sampleEE_.pos.segment(3,3) = H_ee_ref_.rotation().col(0);
+                    sampleEE_.pos.segment(6,3) = H_ee_ref_.rotation().col(1);
+                    sampleEE_.pos.tail(3) = H_ee_ref_.rotation().col(2);  
+                }
+            }
+            eeTask_->setReference(sampleEE_);
             
-        //     trajPosture_Cubic_->setCurrentTime(time_);
-        //     samplePosture_ = trajPosture_Cubic_->computeNext();
-        //     postureTask_->setReference(samplePosture_);
+            trajPosture_Cubic_->setCurrentTime(time_);
+            samplePosture_ = trajPosture_Cubic_->computeNext();
+            postureTask_->setReference(samplePosture_);
             
-        //     if (!action_se3_srv_.response.iswholebody.data){
-        //         trajMobile_Cubic_->setCurrentTime(time_);
-        //         sampleMobile_ = trajMobile_Cubic_->computeNext();
-        //         mobileTask_->setReference(sampleMobile_);
-        //     }
-        //     const HQPData & HQPData = tsid_->computeProblemData(time_, state_.q_, state_.v_);       
-        //     const HQPOutput & sol = solver_->solve(HQPData);
+            const HQPData & HQPData = tsid_->computeProblemData(time_, state_.q_, state_.v_);       
+            const HQPOutput & sol = solver_->solve(HQPData);
 
-        //     state_.torque_.tail(na_ -2) = tsid_->getAccelerations(solver_->solve(HQPData)).tail(na_-2);
-        //     state_.torque_.head(2) = tsid_->getAccelerations(solver_->solve(HQPData)).head(2);
-        // }
+            state_.torque_ = tsid_->getAccelerations(solver_->solve(HQPData));
+        }
 
         
     }

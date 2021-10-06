@@ -7,7 +7,7 @@
     <arg name="load_gripper" value="$(arg load_gripper)" />
   </include>
 
-  <group ns ="ns0">
+  <group ns ="ns1">
     <param name="robot_urdf_path" type="string" value="$(find franka_panda_description)"/>
     <param name="robot_urdf" type="string" value="/franka_single/panda_arm_hand_l.urdf"/>
   </group>
