@@ -55,7 +55,7 @@ int main(int argc, char **argv)
         
         ctrl_->franka_output(franka_qacc_); // this is only for simulation mode
         franka_torque_ = robot_mass_ * franka_qacc_ + robot_nle_;
-
+        
         if (ctrl_->ctrltype() != 0)
             UpdateMob();
         else

@@ -81,6 +81,9 @@ namespace RobotController{
             }
 
             void ee_state(Vector3d & pos, Eigen::Quaterniond & quat);
+            Eigen::VectorXd posture_gain(){
+                return kp_gain_;
+            };
 
         private:
             bool issimulation_, mode_change_, update_weight_;
@@ -89,7 +92,7 @@ namespace RobotController{
             State state_;
         
             int ctrl_mode_;
-            Eigen::VectorXd q_ref_;
+            Eigen::VectorXd q_ref_, kp_gain_;
             pinocchio::SE3 H_ee_ref_;
 
             //hqp

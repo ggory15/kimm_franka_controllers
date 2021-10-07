@@ -137,11 +137,11 @@ class BasicFrankaController : public controller_interface::MultiInterfaceControl
   actionlib::SimpleActionClient<franka_gripper::GraspAction> gripper_grasp_ac_{"/franka_gripper/grasp", true};
 
   franka_gripper::GraspGoal goal;
-  franka_hw::TriggerRate print_rate_trigger_{100}; 
+  franka_hw::TriggerRate print_rate_trigger_{10}; 
   Eigen::Matrix<double, 7, 1> saturateTorqueRate(const Eigen::Matrix<double, 7, 1>& tau_d_calculated, const Eigen::Matrix<double, 7, 1>& tau_J_d);
 
   // Variables
-  const double delta_tau_max_{50.0};
+  const double delta_tau_max_{20.0};
   Vector7d dq_filtered_, franka_torque_;
   Eigen::VectorXd franka_qacc_, robot_nle_, robot_g_;
   MatrixXd robot_mass_, robot_J_, robot_tau_;

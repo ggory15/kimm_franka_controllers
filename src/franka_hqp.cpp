@@ -51,16 +51,18 @@ namespace RobotController{
         postureTask_ = std::make_shared<TaskJointPosture>("task-posture", *robot_);
         VectorXd posture_gain(na_);
         if (!issimulation_)
-        	posture_gain << 200., 200., 200., 200., 100., 100., 100.;
+        	posture_gain << 400., 1100., 300., 120., 120., 120., 80.;
         else
-        	posture_gain << 400., 400., 400., 400., 400., 400., 400.;
+        	posture_gain << 4000., 4000., 4000., 4000., 4000., 4000., 4000.;
         	
         postureTask_->Kp(posture_gain);
         postureTask_->Kd(2.0*postureTask_->Kp().cwiseSqrt());
 
         Vector3d ee_offset(0.0, 0, 0.0);
+        VectorXd ee_gain(6);
+        ee_gain << 400., 400., 400., 200., 200., 200.;
         eeTask_ = std::make_shared<TaskSE3Equality>("task-se3", *robot_, "panda_joint7", ee_offset);
-        eeTask_->Kp(400.0*Vector::Ones(6));
+        eeTask_->Kp(ee_gain*Vector::Ones(6));
         eeTask_->Kd(2.0*eeTask_->Kp().cwiseSqrt());
         
         torqueBoundsTask_ = std::make_shared<TaskJointBounds>("task-torque-bounds", *robot_);
@@ -208,16 +210,19 @@ namespace RobotController{
 
                 prev_node_ = -1;
                 node_index_ = 0;
-                q_ref_ = state_.q_.tail(na_); 
-                VectorXd Kp, Kd;
-                Kp.setOnes(na_);
-                Kd.setOnes(na_);
+                q_ref_ = state_.q_; 
+                VectorXd Kp_pos, Kd_pos;
+                Kp_pos.setOnes(na_);
+                Kd_pos.setOnes(na_);
                 for (int i=0; i<na_; i++){
-                    Kp(i) = action_joint_srv_.response.kp[i];
-                    Kd(i) = action_joint_srv_.response.kv[i];
+                    Kp_pos(i) = action_joint_srv_.response.kp[i];
+                    Kd_pos(i) = action_joint_srv_.response.kv[i];
                 }
-                postureTask_->Kp(Kp);
-                postureTask_->Kd(Kd);
+                postureTask_->Kp(Kp_pos);
+                kp_gain_ = Kp_pos;
+                postureTask_->Kd(Kd_pos);
+                postureTask_->Kd(2.0*postureTask_->Kp().cwiseSqrt());
+                
             }           
 
             samplePosture_.pos.setZero(na_);
@@ -260,7 +265,7 @@ namespace RobotController{
                 tsid_->removeTask("task-torque-bounds");
 
                 tsid_->addMotionTask(*eeTask_, 1, 1);
-                tsid_->addMotionTask(*postureTask_, 1e-5, 1);
+              //  tsid_->addMotionTask(*postureTask_, 1e-5, 1);
                 tsid_->addMotionTask(*torqueBoundsTask_, 1.0, 0);
 
                 mode_change_ = false;
@@ -340,6 +345,7 @@ namespace RobotController{
                 }
             }
             eeTask_->setReference(sampleEE_);
+            //cout << sampleEE_.pos.tail(9).transpose() << endl;
             
             trajPosture_Cubic_->setCurrentTime(time_);
             samplePosture_ = trajPosture_Cubic_->computeNext();
@@ -381,6 +387,7 @@ namespace RobotController{
             pos(i) = robot_->position(data_, robot_->model().getJointId("panda_joint7")).translation()(i);
 
         Quaternion<double> q(robot_->position(data_, robot_->model().getJointId("panda_joint7")).rotation());
+        quat = q;
     }
 
 

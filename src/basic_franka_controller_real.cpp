@@ -20,6 +20,7 @@ bool BasicFrankaController::init(hardware_interface::RobotHW* robot_hw, ros::Nod
   
   torque_state_pub_ = node_handle.advertise<mujoco_ros_msgs::JointSet>("/" + group_name_ + "/real_robot/joint_set", 5);
   joint_state_pub_ = node_handle.advertise<sensor_msgs::JointState>("/" + group_name_ + "/real_robot/joint_states", 5);
+  time_pub_ = node_handle.advertise<std_msgs::Float32>("/" + group_name_ + "/time", 1);
 
   ee_state_pub_ = node_handle.advertise<geometry_msgs::Transform>("/" + group_name_ + "/real_robot/ee_state", 5);
   ee_state_msg_ = geometry_msgs::Transform();
@@ -143,6 +144,7 @@ void BasicFrankaController::update(const ros::Time& time, const ros::Duration& p
       robot_state_msg_.position[i] = franka_q(i);
       robot_state_msg_.velocity[i] = dq_filtered_(i);
     }
+  this->getEEState();
 
   // HQP thread
   
@@ -169,7 +171,7 @@ void BasicFrankaController::update(const ros::Time& time, const ros::Duration& p
   }
   
    for (int i = 0; i < 7; i++)
-      joint_handles_[i].setCommand(0.0);
+      joint_handles_[i].setCommand(franka_torque_(i));
   
     time_ += 0.001;
     time_msg_.data = time_;
@@ -227,17 +229,23 @@ void BasicFrankaController::asyncCalculationProc(){
 
   ctrl_->state(state_);
 
-  //franka_torque_ = robot_mass_ * franka_qacc_ + robot_nle_;
-  franka_torque_ = franka_qacc_ + robot_nle_;
+  ctrl_->mass(robot_mass_);
+  robot_mass_(4, 4) *= 6.0;
+  robot_mass_(5, 5) *= 6.0;
+  robot_mass_(6, 6) *= 10.0;
 
+  franka_torque_ = robot_mass_ * franka_qacc_ + robot_nle_;
+  //franka_torque_ = franka_qacc_ + robot_nle_;
+  //this->setFrankaCommand();
   franka_torque_ << this->saturateTorqueRate(franka_torque_, robot_tau_);
+  
 /*
   if (ctrl_->ctrltype() != 0)
        UpdateMob();
   else
       InitMob();
 */
-  this->setFrankaCommand();
+  
 
   calculation_mutex_.unlock();
 }
@@ -259,10 +267,10 @@ void BasicFrankaController::setFrankaCommand(){
   MatrixXd Kd(7, 7);
   Kd.setIdentity();
   Kd = 2.0 * sqrt(5.0) * Kd;
-  Kd(5, 5) = 0.2;
-  Kd(4, 4) = 0.2;
-  Kd(6, 6) = 0.2; // this is practical term
- // franka_torque_ -= Kd * dq_filtered_;  
+  Kd(5, 5) = 0.5;
+  Kd(4, 4) = 0.5;
+  Kd(6, 6) = 0.5; // this is practical term
+  franka_torque_ -= Kd * dq_filtered_;  
 
   robot_command_msg_.MODE = 1;
   robot_command_msg_.header.stamp = ros::Time::now();
